@@ -1,0 +1,255 @@
+Diabetic-Retinopathy Detection using Python
+
+By Divya.M Karpagam College of Engineering
+
+Import Library:
+
+from scipy import misc
+from PIL import Image
+from skimage import exposure
+from sklearn import svm
+
+import scipy
+from math import sqrt,pi
+from numpy import exp
+from matplotlib import pyplot as plt
+import numpy as np
+import glob
+import matplotlib.pyplot as pltss
+import cv2
+from matplotlib import cm
+import pandas as pd
+from math import pi, sqrt
+import pywt
+
+
+Import Data:
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+#img_rows=img_cols=200
+immatrix=[]
+im_unpre = []
+#image_path = Image.open('C:\Users\Rohan\Desktop\Diabetic_Retinopathy\diaretdb1_v_1_1\diaretdb1_v_1_1\resources\images\ddb1_fundusimages\image0')
+#image = misc.imread(image_path)
+
+for i in range(1,90):
+    img_pt = r'C:\Users\Rohan\Desktop\Diabetic_Retinopathy\diaretdb1_v_1_1\diaretdb1_v_1_1\resources\images\ddb1_fundusimages\image'
+    if i < 10:
+        img_pt = img_pt + "00" + str(i) + ".png"
+    else:
+        img_pt = img_pt + "0" + str(i)+ ".png"
+
+
+
+Describe Data:
+
+    for i in range(1,90):
+    img_pt = r'C:\Users\divya\Desktop\Diabetic_Retinopathy\diaretdb1_v_1_1\diaretdb1_v_1_1\resources\images\ddb1_fundusimages\image'
+    if i < 10:
+        img_pt = img_pt + "00" + str(i) + ".png"
+    else:
+        img_pt = img_pt + "0" + str(i)+ ".png"
+
+
+Data Visualization:
+
+np.shape(np.array(equ).flatten())
+np.shape(immatrix)
+np.shape(equ)
+plt.imshow(immatrix[78].reshape((1152,1500)),cmap='gray')
+plt.show()
+imm_dwt = []
+for equ in immatrix:
+    equ = equ.reshape((1152,1500))
+    coeffs = pywt.dwt2(equ, 'haar')
+    equ2 = pywt.idwt2(coeffs, 'haar')
+    imm_dwt.append(np.array(
+
+np.shape(imm_dwt)
+np.shape(equ2)
+plt.imshow(imm_dwt[78].reshape((1152,1500)),cmap='gray')
+plt.show()
+
+
+Define Target Variable (y) and Feature Variable (x):
+
+def _filter_kernel_mf_fdog(L, sigma, t = 3, mf = True):
+    dim_y = int(L)
+    dim_x = 2 * int(t * sigma)
+    arr = np.zeros((dim_y, dim_x), 'f')
+
+    ctr_x = dim_x / 2
+    ctr_y = int(dim_y / 2.)
+
+    # an un-natural way to set elements of the array
+    # to their x coordinate.
+    # x's are actually columns, so the first dimension of the iterator is used
+    it = np.nditer(arr, flags=['multi_index'])
+    while not it.finished:
+        arr[it.multi_index] = it.multi_index[1] - ctr_x
+        it.iternext()
+
+    two_sigma_sq = 2 * sigma * sigma
+    sqrt_w_pi_sigma = 1. / (sqrt(2 * pi) * sigma)
+    if not mf:
+        sqrt_w_pi_sigma = sqrt_w_pi_sigma / sigma ** 2
+
+    #@vectorize(['float32(float32)'], target='cpu')
+    def k_fun(x):
+        return sqrt_w_pi_sigma * exp(-x * x / two_sigma_sq)
+
+    #@vectorize(['float32(float32)'], target='cpu')
+    def k_fun_derivative(x):
+        return -x * sqrt_w_pi_sigma * exp(-x * x / two_sigma_sq)
+
+    if mf:
+        kernel = k_fun(arr)
+        kernel = kernel - kernel.mean()
+    else:
+        kernel = k_fun_derivative(arr)
+
+    # return the "convolution" kernel for filter2D
+    return cv2.flip(kernel, -1)
+
+def show_images(images,titles=None, scale=1.3):
+    """Display a list of images"""
+    n_ims = len(images)
+    if titles is None: titles = ['(%d)' % i for i in range(1,n_ims + 1)]
+    fig = plt.figure()
+    n = 1
+    for image,title in zip(images,titles):
+        a = fig.add_subplot(1,n_ims,n) # Make subplot
+        if image.ndim == 2: # Is image grayscale?
+            plt.imshow(image, cmap = cm.Greys_r)
+        else:
+            plt.imshow(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+        a.set_title(title)
+        plt.axis("off")
+        n += 1
+    fig.set_size_inches(np.array(fig.get_size_inches(), dtype=np.float) * n_ims / scale)
+    plt.show()
+
+
+def gaussian_matched_filter_kernel(L, sigma, t = 3):
+    '''
+    K =  1/(sqrt(2 * pi) * sigma ) * exp(-x^2/2sigma^2), |y| <= L/2, |x| < s * t
+    '''
+    return _filter_kernel_mf_fdog(L, sigma, t, True)
+
+#Creating a matched filter bank using the kernel generated from the above functions
+def createMatchedFilterBank(K, n = 12):
+    rotate = 180 / n
+    center = (K.shape[1] / 2, K.shape[0] / 2)
+    cur_rot = 0
+    kernels = [K]
+
+    for i in range(1, n):
+        cur_rot += rotate
+        r_mat = cv2.getRotationMatrix2D(center, cur_rot, 1)
+        k = cv2.warpAffine(K, r_mat, (K.shape[1], K.shape[0]))
+        kernels.append(k)
+
+    return kernels
+
+#Given a filter bank, apply them and record maximum response
+
+def applyFilters(im, kernels):
+
+    images = np.array([cv2.filter2D(im, -1, k) for k in kernels])
+    return np.max(images, 0)
+
+
+gf = gaussian_matched_filter_kernel(20, 5)
+bank_gf = createMatchedFilterBank(gf, 4)
+
+imm_gauss = []
+for equ2 in imm_dwt:
+    equ2 = equ2.reshape((1152,1500))
+    equ3 = applyFilters(equ2,bank_gf)
+    imm_gauss.append(np.array(equ3).flatten())
+
+
+
+np.shape(imm_gauss)
+plt.imshow(imm_gauss[78].reshape((1152,1500)),cmap='gray')
+plt.show()
+
+
+
+Train Test Split:
+
+def createMatchedFilterBank():
+    filters = []
+    ksize = 31
+    for theta in np.arange(0, np.pi, np.pi / 16):
+        kern = cv2.getGaborKernel((ksize, ksize), 6, theta,12, 0.37, 0, ktype=cv2.CV_32F)
+        kern /= 1.5*kern.sum()
+        filters.append(kern)
+    return filters
+
+def applyFilters(im, kernels):
+    images = np.array([cv2.filter2D(im, -1, k) for k in kernels])
+    return np.max(images, 0)
+
+bank_gf = createMatchedFilterBank()
+#equx=equ3
+#equ3 = applyFilters(equ2,bank_gf)
+imm_gauss2 = []
+for equ2 in imm_dwt:
+    equ2 = equ2.reshape((1152,1500))
+    equ3 = applyFilters(equ2,bank_gf)
+    imm_gauss2.append(np.array(equ3).flatten())
+# the array ranges from 0 - 89
+np.shape(imm_gauss2)
+plt.imshow(imm_gauss2[20].reshape((1152,1500)),cmap='gray')
+plt.show()
+
+
+
+Model Evaluation:
+
+from sklearn.svm import SVC
+clf = SVC()
+
+Y = np.ones(89)
+
+
+These corresponding Images are marked as non-effected in the data-set.
+
+Y[1]=Y[5]=Y[7]=Y[17]=Y[6]=0
+
+
+SVM with Radial Basis Function (RBF)
+
+Linear SVM classifies the data by putting a hyper plane between the two classes. In the case of rbf SVM the plane would be in infinite dimension
+
+clf.fit(imm_kmean, Y)
+
+
+
+SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0, decision_function_shape=None, degree=3, gamma='auto', kernel='rbf', max_iter=-1, probability=False, random_state=None, shrinking=True, tol=0.001, verbose=False)
+
+
+
+y_pred = clf.predict(imm_kmean)
+k = [1,3,4,9,10,11,13,14,20,22,24,25,26,27,28,29,35,36,38,42,53,55,57,64,70,79,84,86]
+k = k-np.ones(len(k))
+k
+
+
+Prediction:
+
+from sklearn.neighbors import KNeighborsClassifier
+neigh = KNeighborsClassifier(n_neighbors=3)
+neigh.fit(imm_train, y_train)
+
+
+
+
+Explaination
+
+observation of the retinal fundus either directly or through imaging techniques such as fundus photography or optical coherence tomography. There are several standard DR grading systems such as the Early Treatment Diabetic Retinopathy
+
+Thank You YBI Foundation
